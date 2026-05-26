@@ -64,11 +64,11 @@ function abrirForm(tipo) {
   cartorioSelecionado = '';
   document.getElementById('buscaOption').classList.remove('active');
   document.getElementById('cartorioSection').classList.remove('visible');
-  ['f-nome','f-pai','f-mae','f-data','f-estado','f-cidade'].forEach(id => {
+  ['f-nome','f-pai','f-mae','f-data','f-email','f-whatsapp','f-estado','f-cidade'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  ['fg-nome','fg-pai','fg-mae','fg-data','fg-estado','fg-cidade'].forEach(id => {
+  ['fg-nome','fg-pai','fg-mae','fg-data','fg-email','fg-whatsapp','fg-estado','fg-cidade'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('error');
   });
@@ -120,6 +120,17 @@ function validarStep(n) {
       if (!el.value.trim()) { fg.classList.add('error'); ok = false; }
       else fg.classList.remove('error');
     });
+    // Validate email
+    const emailEl = document.getElementById('f-email');
+    const emailFg = document.getElementById('fg-email');
+    if (!emailEl.value.trim() || !emailEl.value.includes('@')) {
+      emailFg.classList.add('error'); ok = false;
+    } else emailFg.classList.remove('error');
+    // Validate whatsapp
+    const waEl = document.getElementById('f-whatsapp');
+    const waFg = document.getElementById('fg-whatsapp');
+    if (!waEl.value.trim()) { waFg.classList.add('error'); ok = false; }
+    else waFg.classList.remove('error');
     return ok;
   }
   if (n === 2) {
@@ -130,12 +141,6 @@ function validarStep(n) {
       if (!el.value.trim()) { fg.classList.add('error'); ok = false; }
       else fg.classList.remove('error');
     });
-    if (!buscaAtiva && !cartorioSelecionado) {
-      document.getElementById('cartorioError').style.display = 'block';
-      ok = false;
-    } else {
-      document.getElementById('cartorioError').style.display = 'none';
-    }
     return ok;
   }
   return true;
@@ -202,10 +207,10 @@ function getTotal() {
 function renderPreco() {
   const { base, servico, busca, total } = getTotal();
   document.getElementById('precoWrap').innerHTML = `
-    <div class="price-row"><span class="price-label">Valor da certidão</span><span class="price-val">R$ ${base},00</span></div>
-    <div class="price-row"><span class="price-label">Taxa de serviço</span><span class="price-val">R$ ${servico},00</span></div>
-    ${busca ? `<div class="price-row"><span class="price-label">Serviço de busca de cartório</span><span class="price-val extra">+ R$ ${busca},00</span></div>` : ''}
-    <div class="price-row total"><span class="price-label">Total</span><span class="price-val">R$ ${total},00</span></div>`;
+    <div class="price-row"><span class="price-label">Valor da certidão</span><span class="price-val">R$ ${base.toFixed(2).replace(".",",")}</span></div>
+    <div class="price-row"><span class="price-label">Taxa de serviço</span><span class="price-val">R$ ${servico.toFixed(2).replace(".",",")}</span></div>
+    ${busca ? `<div class="price-row"><span class="price-label">Serviço de busca de cartório</span><span class="price-val extra">+ R$ ${busca.toFixed(2).replace(".",",")}</span></div>` : ''}
+    <div class="price-row total"><span class="price-label">Total</span><span class="price-val">R$ ${total.toFixed(2).replace(".",",")}</span></div>`;
 }
 
 // ===== REVISÃO =====
@@ -225,6 +230,8 @@ function renderRevisao() {
         <div class="review-item"><div class="rlabel">${info.dataLabel}</div><div class="rvalue">${document.getElementById('f-data').value}</div></div>
         <div class="review-item"><div class="rlabel">Nome do pai</div><div class="rvalue">${document.getElementById('f-pai').value}</div></div>
         <div class="review-item"><div class="rlabel">Nome da mãe</div><div class="rvalue">${document.getElementById('f-mae').value}</div></div>
+        <div class="review-item"><div class="rlabel">E-mail</div><div class="rvalue">${document.getElementById('f-email').value}</div></div>
+        <div class="review-item"><div class="rlabel">WhatsApp</div><div class="rvalue">${document.getElementById('f-whatsapp').value}</div></div>
       </div>
     </div>
     <div class="review-divider"></div>
@@ -244,10 +251,10 @@ function renderRevisao() {
     <div class="review-section">
       <div class="review-title">Resumo financeiro</div>
       <div class="price-card-wrap">
-        <div class="price-row"><span class="price-label">Valor da certidão</span><span class="price-val">R$ ${base},00</span></div>
-        <div class="price-row"><span class="price-label">Taxa de serviço</span><span class="price-val">R$ ${servico},00</span></div>
-        ${busca ? `<div class="price-row"><span class="price-label">Serviço de busca</span><span class="price-val extra">+ R$ ${busca},00</span></div>` : ''}
-        <div class="price-row total"><span class="price-label">Total</span><span class="price-val">R$ ${total},00</span></div>
+        <div class="price-row"><span class="price-label">Valor da certidão</span><span class="price-val">R$ ${base.toFixed(2).replace(".",",")}</span></div>
+        <div class="price-row"><span class="price-label">Taxa de serviço</span><span class="price-val">R$ ${servico.toFixed(2).replace(".",",")}</span></div>
+        ${busca ? `<div class="price-row"><span class="price-label">Serviço de busca</span><span class="price-val extra">+ R$ ${busca.toFixed(2).replace(".",",")}</span></div>` : ''}
+        <div class="price-row total"><span class="price-label">Total</span><span class="price-val">R$ ${total.toFixed(2).replace(".",",")}</span></div>
       </div>
     </div>`;
 }
@@ -263,6 +270,8 @@ async function finalizarPedido() {
 
   const payload = {
     tipo_certidao: info.label,
+    email:         document.getElementById('f-email').value,
+    whatsapp:      document.getElementById('f-whatsapp').value,
     nome:          document.getElementById('f-nome').value,
     nome_pai:      document.getElementById('f-pai').value,
     nome_mae:      document.getElementById('f-mae').value,

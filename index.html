@@ -244,6 +244,16 @@
           <input type="date" id="f-data">
           <div class="error-msg">Campo obrigatório</div>
         </div>
+        <div class="field-group" id="fg-email">
+          <label>E-mail *</label>
+          <input type="email" id="f-email" placeholder="seu@email.com">
+          <div class="error-msg">Informe um e-mail válido</div>
+        </div>
+        <div class="field-group" id="fg-whatsapp">
+          <label>WhatsApp *</label>
+          <input type="tel" id="f-whatsapp" placeholder="(11) 99999-9999">
+          <div class="error-msg">Campo obrigatório</div>
+        </div>
         <div class="btn-row">
           <button class="btn-next blue full" onclick="irStep(2)">Continuar →</button>
         </div>
@@ -272,19 +282,7 @@
             <div class="error-msg">Campo obrigatório</div>
           </div>
         </div>
-        <div class="busca-option" id="buscaOption" onclick="toggleBusca()">
-          <div class="busca-check" id="buscaCheck"></div>
-          <div>
-            <div class="busca-title">Não sei em qual cartório foi registrado</div>
-            <div class="busca-desc">Ative o serviço de busca e nossa equipe localiza o cartório correto para você.</div>
-            <span class="busca-price-tag">+ R$ 10,00</span>
-          </div>
-        </div>
-        <div class="cartorio-section" id="cartorioSection">
-          <div class="sec-label">Selecione o cartório *</div>
-          <div class="cartorio-list" id="cartorioList"></div>
-          <div class="error-msg" id="cartorioError" style="display:none">Selecione um cartório ou ative o serviço de busca</div>
-        </div>
+
         <div class="btn-row">
           <button class="btn-back" onclick="irStep(1)">← Voltar</button>
           <button class="btn-next blue" onclick="irStep(3)">Continuar →</button>
@@ -307,10 +305,7 @@
       <!-- STEP 4 -->
       <div class="step-pane" id="step4">
         <div id="revisaoConteudo"></div>
-        <div style="background:#f1f5fd;border-radius:8px;padding:.9rem 1rem;font-size:.82rem;color:#475569;line-height:1.5;margin-bottom:1rem">
-          ℹ️ Serviço de intermediação. Não somos cartório oficial. Documentos emitidos por cartórios competentes.
-          <button class="link-aviso" onclick="abrirAviso()">Ver esclarecimento →</button>
-        </div>
+
         <div class="btn-row">
           <button class="btn-back" onclick="irStep(3)">← Voltar</button>
           <button class="btn-next green" onclick="finalizarPedido()">✅ Finalizar pedido</button>
