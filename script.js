@@ -1,6 +1,6 @@
 // ===== CONFIG =====
 // Substitua pelo seu endpoint do Formspree após criar conta em formspree.io
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/SEU_ID_AQUI';
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwvzwbdb';
 
 // ===== PRECOS POR ESTADO =====
 const PRECOS_ESTADO = {
