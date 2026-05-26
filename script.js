@@ -1,8 +1,9 @@
-// ===== CONFIG =====
-// Substitua pelo seu endpoint do Formspree após criar conta em formspree.io
-// Endpoint configurado na função finalizarPedido abaixo
-
-// ===== PRECOS POR ESTADO =====
+1  // ===== CONFIG =====
+2  // Substitua SEU_ID_AQUI pelo ID do seu form no Formspree
+3  const SHEETS_ENDPOINT = 'https://formspree.io/f/mwvzwbdb';
+4  
+5  // ===== PRECOS POR ESTADO =====
+6  const PRECOS_ESTADO = {// ===== PRECOS POR ESTADO =====
 const PRECOS_ESTADO = {
   AC:126.80, AL:218.75, AM:196.84, AP:157.52, BA:143.86,
   CE:180.62, DF:144.28, ES:144.92, GO:194.35, MA:153.58,
