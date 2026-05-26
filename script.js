@@ -1,6 +1,6 @@
 // ===== CONFIG =====
 // Substitua pelo seu endpoint do Formspree após criar conta em formspree.io
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwvzwbdb';
+const SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyuh68OeMVLaokeNj6XvmiC7Ng-ODPhnBWSHux2s4Xk9NeL6ba2ZJNZ-TWYt2avkZLiPQ/exec';
 
 // ===== PRECOS POR ESTADO =====
 const PRECOS_ESTADO = {
@@ -249,11 +249,12 @@ async function finalizarPedido() {
   };
 
   try {
-    const res = await fetch(FORMSPREE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch(SHEETS_ENDPOINT, {
+  method: 'POST',
+  mode: 'no-cors',
+  headers: { 'Content-Type': 'text/plain' },
+  body: JSON.stringify(payload)
+});
     if (res.ok) {
       document.querySelectorAll('.step-pane').forEach(p => p.classList.remove('active'));
       document.getElementById('stepSuccess').classList.add('active');
