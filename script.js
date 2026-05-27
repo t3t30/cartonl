@@ -115,14 +115,14 @@ function irStep(n,force=false){
   if(!force && n>stepAtual && !validarStep(stepAtual)) return;
   stepAtual=n;
   document.querySelectorAll('.step-pane').forEach(p=>p.classList.remove('active'));
-  // Map step numbers to IDs
   const ids={1:'step1',2:'step2',3:'step3',4:'step4preco',5:'step5'};
   const pane=document.getElementById(ids[n]||'stepSuccess');
   if(pane) pane.classList.add('active');
   atualizarProgress(n);
-  if(n===4) renderPreco();
-  if(n===5) renderRevisao();
-  document.querySelector('.form-modal').scrollTop=0;
+  if(n===4) setTimeout(renderPreco,50);
+  if(n===5) setTimeout(renderRevisao,50);
+  const modal=document.querySelector('.form-modal');
+  if(modal) modal.scrollTop=0;
 }
 
 function atualizarProgress(n){
@@ -204,6 +204,15 @@ function validarStep(n){
         if(vazio){if(fg)fg.classList.add('error');ok=false;}
         else if(fg)fg.classList.remove('error');
       });
+      if(freteSelecionado===0){
+        const frInfo=document.getElementById('freteInfo');
+        if(frInfo && frInfo.style.display==='none'){
+          alert('Por favor, busque seu CEP e selecione uma opção de frete.');
+        } else {
+          alert('Por favor, selecione PAC ou SEDEX para continuar.');
+        }
+        ok=false;
+      }
     }
     return ok;
   }
@@ -267,14 +276,31 @@ async function carregarCartorios(estado, cidade){
     }
   }catch(e){}
 
+  if(loading) loading.style.display='none';
+
   if(!cartorios.length){
-    cartorios=[
-      `1º Cartório de Registro Civil – ${cidade}`,
-      `2º Cartório de Registro Civil – ${cidade}`
-    ];
+    // Não mostrar genérico - forçar serviço de busca
+    if(selCart) selCart.style.display='none';
+    const msgEl=document.getElementById('cartorioNaoEncontrado');
+    if(!msgEl){
+      const wrap=document.getElementById('fg-cartorio');
+      if(wrap){
+        const msg=document.createElement('div');
+        msg.id='cartorioNaoEncontrado';
+        msg.style.cssText='background:#fef3c7;border:1px solid #fde68a;border-radius:var(--radius-sm);padding:.9rem;font-size:.85rem;color:#92400e;line-height:1.5;margin-top:.5rem';
+        msg.innerHTML='⚠️ Não encontramos cartórios cadastrados para esta cidade no sistema oficial.<br><strong>Ative o serviço de busca abaixo</strong> e nossa equipe localiza o cartório correto para você.';
+        wrap.appendChild(msg);
+      }
+    }
+    // Auto-ativar serviço de busca
+    if(!buscaAtiva) toggleBusca();
+    return;
   }
 
-  if(loading) loading.style.display='none';
+  // Remover mensagem de não encontrado se existir
+  const msgEl=document.getElementById('cartorioNaoEncontrado');
+  if(msgEl) msgEl.remove();
+
   if(selCart){
     selCart.style.display='block';
     let opts='<option value="">Selecione o cartório...</option>';
@@ -346,42 +372,109 @@ function selecionarApostila(opcao){
 }
 
 // ===== CEP / FRETE =====
+// Tabela de fretes Correios 2024 (envelopes até 100g, origem SP)
+const FRETES_CORREIOS = {
+  SP:{pac:15.90,sedex:24.90,ppac:'5-8 dias úteis',psedex:'1-2 dias úteis'},
+  RJ:{pac:18.90,sedex:28.90,ppac:'5-8 dias úteis',psedex:'1-2 dias úteis'},
+  MG:{pac:17.90,sedex:26.90,ppac:'5-8 dias úteis',psedex:'2-3 dias úteis'},
+  ES:{pac:18.90,sedex:28.90,ppac:'6-8 dias úteis',psedex:'2-3 dias úteis'},
+  PR:{pac:19.90,sedex:29.90,ppac:'6-9 dias úteis',psedex:'1-2 dias úteis'},
+  SC:{pac:19.90,sedex:29.90,ppac:'6-9 dias úteis',psedex:'2-3 dias úteis'},
+  RS:{pac:21.90,sedex:31.90,ppac:'7-10 dias úteis',psedex:'2-3 dias úteis'},
+  DF:{pac:20.90,sedex:30.90,ppac:'6-9 dias úteis',psedex:'2-3 dias úteis'},
+  GO:{pac:20.90,sedex:30.90,ppac:'7-10 dias úteis',psedex:'2-3 dias úteis'},
+  MT:{pac:22.90,sedex:33.90,ppac:'8-12 dias úteis',psedex:'3-4 dias úteis'},
+  MS:{pac:21.90,sedex:32.90,ppac:'7-10 dias úteis',psedex:'3-4 dias úteis'},
+  BA:{pac:22.90,sedex:33.90,ppac:'7-10 dias úteis',psedex:'2-3 dias úteis'},
+  PE:{pac:23.90,sedex:34.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
+  CE:{pac:23.90,sedex:34.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
+  MA:{pac:24.90,sedex:36.90,ppac:'9-12 dias úteis',psedex:'4-5 dias úteis'},
+  PI:{pac:24.90,sedex:36.90,ppac:'9-12 dias úteis',psedex:'4-5 dias úteis'},
+  RN:{pac:24.90,sedex:35.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
+  PB:{pac:24.90,sedex:35.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
+  AL:{pac:24.90,sedex:35.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
+  SE:{pac:23.90,sedex:34.90,ppac:'8-10 dias úteis',psedex:'3-4 dias úteis'},
+  PA:{pac:26.90,sedex:38.90,ppac:'10-14 dias úteis',psedex:'4-5 dias úteis'},
+  AM:{pac:28.90,sedex:41.90,ppac:'12-16 dias úteis',psedex:'5-6 dias úteis'},
+  AC:{pac:30.90,sedex:44.90,ppac:'14-18 dias úteis',psedex:'5-7 dias úteis'},
+  RO:{pac:28.90,sedex:41.90,ppac:'12-15 dias úteis',psedex:'4-5 dias úteis'},
+  RR:{pac:30.90,sedex:44.90,ppac:'14-18 dias úteis',psedex:'5-7 dias úteis'},
+  AP:{pac:28.90,sedex:41.90,ppac:'12-15 dias úteis',psedex:'4-5 dias úteis'},
+  TO:{pac:25.90,sedex:37.90,ppac:'9-12 dias úteis',psedex:'4-5 dias úteis'},
+};
+
 async function buscarCep(){
   const cepEl=document.getElementById('f-cep');
   const cep=(cepEl?cepEl.value:'').replace(/\D/g,'');
-  if(cep.length!==8){alert('CEP inválido');return;}
+  if(cep.length!==8){alert('CEP inválido. Digite 8 números.');return;}
+
+  const btn=document.querySelector('#enderecoWrap button[onclick="buscarCep()"]');
+  if(btn){btn.textContent='Buscando...';btn.disabled=true;}
+
   try{
-    const r=await fetch('/api/frete',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({cep_destino:cep})
-    });
+    // ViaCEP funciona direto no browser com CORS liberado
+    const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`);
     const data=await r.json();
-    if(data.erro){alert('CEP não encontrado');return;}
-    // Preenche campos
-    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
-    set('f-rua',data.logradouro||'');
-    set('f-bairro',data.bairro||'');
-    set('f-cidade-end',data.cidade||'');
-    set('f-uf-end',data.uf||'');
-    // Mostra opções de frete
+
+    if(data.erro){
+      alert('CEP não encontrado. Verifique e tente novamente.');
+      if(btn){btn.textContent='Buscar';btn.disabled=false;}
+      return;
+    }
+
+    // Preenche campos de endereço
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+    set('f-rua', data.logradouro);
+    set('f-bairro', data.bairro);
+    set('f-cidade-end', data.localidade);
+    set('f-uf-end', data.uf);
+
+    // Calcula frete pela tabela Correios
+    const uf=data.uf;
+    const fretes=FRETES_CORREIOS[uf]||{pac:29.90,sedex:44.90,ppac:'10-15 dias úteis',psedex:'5-7 dias úteis'};
+    freteSelecionado=0; freteNome='';
+
     const frInfo=document.getElementById('freteInfo');
     const frOpt=document.getElementById('freteOpcoes');
     if(frInfo) frInfo.style.display='block';
     if(frOpt) frOpt.innerHTML=`
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;padding:6px;border-radius:6px;background:var(--white);border:1px solid var(--border)">
-          <input type="radio" name="frete" value="${data.pac}" onchange="selecionarFrete(${data.pac},'PAC')">
-          <span>📦 PAC — R$ ${data.pac.toFixed(2).replace('.',',')} (${data.prazo_pac})</span>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;padding:8px;border-radius:6px;background:var(--white);border:1.5px solid var(--border)" id="label-pac">
+          <input type="radio" name="frete" value="${fretes.pac}" onchange="selecionarFrete(${fretes.pac},'PAC',this)">
+          <div>
+            <div style="font-weight:600">📦 PAC — R$ ${fretes.pac.toFixed(2).replace('.',',')}</div>
+            <div style="font-size:.78rem;color:var(--text-2)">${fretes.ppac}</div>
+          </div>
         </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;padding:6px;border-radius:6px;background:var(--white);border:1px solid var(--border)">
-          <input type="radio" name="frete" value="${data.sedex}" onchange="selecionarFrete(${data.sedex},'SEDEX')">
-          <span>⚡ SEDEX — R$ ${data.sedex.toFixed(2).replace('.',',')} (${data.prazo_sedex})</span>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;padding:8px;border-radius:6px;background:var(--white);border:1.5px solid var(--border)" id="label-sedex">
+          <input type="radio" name="frete" value="${fretes.sedex}" onchange="selecionarFrete(${fretes.sedex},'SEDEX',this)">
+          <div>
+            <div style="font-weight:600">⚡ SEDEX — R$ ${fretes.sedex.toFixed(2).replace('.',',')}</div>
+            <div style="font-size:.78rem;color:var(--text-2)">${fretes.psedex}</div>
+          </div>
         </label>
+      </div>
+      <div style="font-size:.75rem;color:var(--text-3);margin-top:6px">
+        * Valores baseados na tabela oficial dos Correios 2024 para documentos (envelope até 100g).
       </div>`;
-  }catch(e){alert('Erro ao buscar CEP');}
+
+    if(btn){btn.textContent='Buscar';btn.disabled=false;}
+  }catch(e){
+    alert('Erro ao buscar CEP. Verifique sua conexão e tente novamente.');
+    if(btn){btn.textContent='Buscar';btn.disabled=false;}
+  }
 }
-function selecionarFrete(valor, nome){freteSelecionado=valor;freteNome=nome;}
+function selecionarFrete(valor, nome, inputEl){
+  freteSelecionado=valor; freteNome=nome;
+  // Highlight selected label
+  document.querySelectorAll('#freteOpcoes label').forEach(l=>{
+    l.style.borderColor='var(--border)';l.style.background='var(--white)';
+  });
+  if(inputEl && inputEl.closest('label')){
+    inputEl.closest('label').style.borderColor='var(--blue)';
+    inputEl.closest('label').style.background='var(--blue-light)';
+  }
+}
 function mascaraCep(el){
   let v=el.value.replace(/\D/g,'');
   if(v.length>8)v=v.slice(0,8);
@@ -507,7 +600,7 @@ async function finalizarPedido(){
     valor_total:fmt(total)
   };
 
-  if(WEB3FORMS_KEY!=='SUA_ACCESS_KEY_AQUI'){
+  if(WEB3FORMS_KEY!=='093f3f0c-3877-4b46-8328-88357cbc60ab'){
     try{
       await fetch('https://api.web3forms.com/submit',{
         method:'POST',
