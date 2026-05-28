@@ -23,6 +23,7 @@ export default async function handler(req, res) {
     const body = {
       items: [{
         title: tipo_certidao + ' – ' + estado,
+        description: 'Emissão de 2ª via de certidão de registro civil',
         quantity: 1,
         unit_price: valor,
         currency_id: 'BRL'
@@ -32,14 +33,15 @@ export default async function handler(req, res) {
         excluded_payment_types: [],
         installments: 1
       },
+      auto_return: 'approved',
+      statement_descriptor: 'CARTORIO EM CASA',
+      external_reference: `${tipo_certidao}-${estado}-${Date.now()}`,
+      notification_url: 'https://cartorioemcasa.com.br/api/webhook',
       back_urls: {
         success: 'https://cartorioemcasa.com.br/?pagamento=sucesso',
         failure: 'https://cartorioemcasa.com.br/?pagamento=falha',
         pending: 'https://cartorioemcasa.com.br/?pagamento=pendente'
-      },
-      auto_return: 'approved',
-      statement_descriptor: 'CARTORIO EM CASA',
-      external_reference: `${tipo_certidao}-${estado}-${Date.now()}`
+      }
     };
 
     const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
