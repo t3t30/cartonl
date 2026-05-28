@@ -36,7 +36,7 @@ export default async function handler(req, res) {
       auto_return: 'approved',
       statement_descriptor: 'CARTORIO EM CASA',
       external_reference: `${tipo_certidao}-${estado}-${Date.now()}`,
-      notification_url: 'https://cartorioemcasa.com.br/api/webhook',
+      notification_url: 'https://www.cartorioemcasa.com.br/api/webhook',
       back_urls: {
         success: 'https://cartorioemcasa.com.br/?pagamento=sucesso',
         failure: 'https://cartorioemcasa.com.br/?pagamento=falha',
