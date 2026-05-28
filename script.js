@@ -1,5 +1,5 @@
 // ===== CONFIG =====
-const WEB3FORMS_KEY = 'SUA_ACCESS_KEY_AQUI';
+const WEB3FORMS_KEY = '093f3f0c-3877-4b46-8328-88357cbc60ab';
 const TAXA_BUSCA = 10;
 const TAXA_APOSTILA = 240;
 
