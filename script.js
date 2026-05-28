@@ -171,7 +171,7 @@ function validarStep(n){
     // Data inicial obrigatória
     const dtIni=document.getElementById('f-data-ini');
     const dtIniFg=document.getElementById('fg-data-ini');
-    if(!dtIni||!dtIni.value||dtIni.value.replace(/\D/g,'').length<8){
+    if(!dtIni||!dtIni.value){
       if(dtIniFg)dtIniFg.classList.add('error'); ok=false;
     } else if(dtIniFg) dtIniFg.classList.remove('error');
     return ok;
@@ -544,7 +544,7 @@ function renderRevisao(){
       <div class="review-grid">
         <div class="review-item"><div class="rlabel">Estado</div><div class="rvalue">${document.getElementById('f-estado').value}</div></div>
         <div class="review-item"><div class="rlabel">Cidade</div><div class="rvalue">${document.getElementById('f-cidade').value}</div></div>
-        <div class="review-item"><div class="rlabel">Período do registro</div><div class="rvalue">${(document.getElementById('f-data-ini')||{}).value||'—'} ${(document.getElementById('f-data-fim')&&document.getElementById('f-data-fim').value)?'até '+(document.getElementById('f-data-fim').value):''}</div></div>
+        <div class="review-item"><div class="rlabel">Período do registro</div><div class="rvalue">${fmtData((document.getElementById('f-data-ini')||{}).value)||'—'}${(document.getElementById('f-data-fim')&&document.getElementById('f-data-fim').value)?' até '+fmtData(document.getElementById('f-data-fim').value):''}</div></div>
         ${(document.getElementById('f-cartorio-nome')&&document.getElementById('f-cartorio-nome').value)?`<div class="review-item"><div class="rlabel">Cartório informado</div><div class="rvalue">${document.getElementById('f-cartorio-nome').value}</div></div>`:''}
       </div>
     </div>
@@ -591,8 +591,8 @@ async function finalizarPedido(){
     estado:document.getElementById('f-estado').value,
     cidade:document.getElementById('f-cidade').value,
     cartorio_nome:  document.getElementById('f-cartorio-nome')?document.getElementById('f-cartorio-nome').value:'',
-    data_ini:       document.getElementById('f-data-ini')?document.getElementById('f-data-ini').value:'',
-    data_fim:       document.getElementById('f-data-fim')?document.getElementById('f-data-fim').value:'',
+    data_ini:       fmtData(document.getElementById('f-data-ini')?document.getElementById('f-data-ini').value:''),
+    data_fim:       fmtData(document.getElementById('f-data-fim')?document.getElementById('f-data-fim').value:''),
     entrega:entregaSelecionada==='fisica'?'Física':'Eletrônica',
     apostilamento:apostilaSelecionada==='sim'?'Sim':'Não',
     endereco_entrega:entregaSelecionada==='fisica'?
@@ -639,127 +639,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(pv)pv.addEventListener('click',e=>{if(e.target===pv)fecharAviso();});
 });
 
-// ===== MINI CALENDAR =====
-let calAtivo = null; // 'ini' ou 'fim'
-let calAno = new Date().getFullYear();
-let calMes = new Date().getMonth();
 
-const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
-function abrirCalendario(qual) {
-  fecharCalendarios();
-  calAtivo = qual;
-  // Pre-fill ano/mes based on existing value
-  const inp = document.getElementById('f-data-' + qual);
-  if (inp && inp.value && inp.value.length === 10) {
-    const parts = inp.value.split('/');
-    if (parts.length === 3) {
-      calMes = parseInt(parts[1]) - 1;
-      calAno = parseInt(parts[2]);
-    }
-  } else {
-    // Default: for 'ini', use birth date from step 1 if available
-    if (qual === 'ini') {
-      const dataEvento = document.getElementById('f-data');
-      if (dataEvento && dataEvento.value) {
-        const p = dataEvento.value.split('/');
-        if (p.length === 3) { calMes = parseInt(p[1])-1; calAno = parseInt(p[2]); }
-      } else { calAno = new Date().getFullYear()-30; calMes = 0; }
-    } else {
-      calAno = new Date().getFullYear(); calMes = new Date().getMonth();
-    }
-  }
-  renderCalendario(qual);
-  const cal = document.getElementById('cal-' + qual);
-  if (cal) cal.style.display = 'block';
-  // Close on outside click
-  setTimeout(() => document.addEventListener('click', fecharCalendarioClick), 10);
-}
-
-function fecharCalendarioClick(e) {
-  if (!e.target.closest('.mini-cal') && !e.target.closest('input[id^="f-data"]')) {
-    fecharCalendarios();
-  }
-}
-
-function fecharCalendarios() {
-  ['ini','fim'].forEach(q => {
-    const el = document.getElementById('cal-' + q);
-    if (el) el.style.display = 'none';
-  });
-  document.removeEventListener('click', fecharCalendarioClick);
-  calAtivo = null;
-}
-
-function renderCalendario(qual) {
-  const cal = document.getElementById('cal-' + qual);
-  if (!cal) return;
-
-  const primeiroDia = new Date(calAno, calMes, 1).getDay();
-  const diasNoMes = new Date(calAno, calMes + 1, 0).getDate();
-  const hoje = new Date();
-
-  // Get currently selected date
-  const inp = document.getElementById('f-data-' + qual);
-  let selDia = -1;
-  if (inp && inp.value && inp.value.length === 10) {
-    const p = inp.value.split('/');
-    if (parseInt(p[1])-1 === calMes && parseInt(p[2]) === calAno) selDia = parseInt(p[0]);
-  }
-
-  let grid = DIAS_SEMANA.map(d => `<div class="mini-cal-dow">${d}</div>`).join('');
-  for (let i = 0; i < primeiroDia; i++) grid += `<div class="mini-cal-day empty"></div>`;
-  for (let d = 1; d <= diasNoMes; d++) {
-    const isHoje = d === hoje.getDate() && calMes === hoje.getMonth() && calAno === hoje.getFullYear();
-    const isSel = d === selDia;
-    grid += `<div class="mini-cal-day${isSel?' selected':''}${isHoje&&!isSel?' today':''}" onclick="selecionarDia(${qual==='ini'?'\'ini\'':'\'fim\''},${d})">${d}</div>`;
-  }
-
-  cal.innerHTML = `
-    <div class="mini-cal-header">
-      <button onclick="navCal(-1)" type="button">‹</button>
-      <span>${MESES[calMes]} ${calAno}</span>
-      <button onclick="navCal(1)" type="button">›</button>
-    </div>
-    <div class="mini-cal-grid">${grid}</div>
-    <div class="mini-cal-footer">
-      <button onclick="fecharCalendarios()" type="button">Fechar</button>
-      ${qual==='fim'?`<button onclick="limparData('fim')" type="button">Limpar</button>`:''}
-      <button class="primary" onclick="fecharCalendarios()" type="button">OK</button>
-    </div>`;
-}
-
-function navCal(dir) {
-  calMes += dir;
-  if (calMes < 0) { calMes = 11; calAno--; }
-  if (calMes > 11) { calMes = 0; calAno++; }
-  if (calAtivo) renderCalendario(calAtivo);
-}
-
-function selecionarDia(qual, dia) {
-  const mes = String(calMes + 1).padStart(2, '0');
-  const diaStr = String(dia).padStart(2, '0');
-  const inp = document.getElementById('f-data-' + qual);
-  if (inp) {
-    inp.value = `${diaStr}/${mes}/${calAno}`;
-    // Validate
-    const fg = document.getElementById('fg-data-' + qual);
-    if (fg) fg.classList.remove('error');
-  }
-  renderCalendario(qual);
-}
-
-function limparData(qual) {
-  const inp = document.getElementById('f-data-' + qual);
-  if (inp) inp.value = '';
-  fecharCalendarios();
-}
-
-function mascaraData(el) {
-  let v = el.value.replace(/\D/g,'');
-  if (v.length > 8) v = v.slice(0,8);
-  if (v.length > 4) el.value = v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
-  else if (v.length > 2) el.value = v.slice(0,2)+'/'+v.slice(2);
-  else el.value = v;
+function fmtData(val) {
+  if (!val) return '';
+  if (val.includes('/')) return val;
+  const p = val.split('-');
+  if (p.length === 3) return p[2]+'/'+p[1]+'/'+p[0];
+  return val;
 }
