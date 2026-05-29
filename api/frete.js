@@ -30,10 +30,10 @@ export default async function handler(req, res) {
         from: { postal_code: origem },
         to: { postal_code: destino },
         package: {
-          height: 1,     // cm - envelope
+          height: 2,     // cm - envelope acolchoado
           width: 20,     // cm
           length: 28,    // cm
-          weight: 0.1    // kg - documento
+          weight: 0.3    // kg - documento com embalagem
         }
       })
     });
