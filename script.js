@@ -5,7 +5,7 @@ const TAXA_APOSTILA = 240;
 
 // ===== PRECOS POR ESTADO =====
 const PRECOS_ESTADO = {
-  AC:0.10, AL:218.75, AM:196.84, AP:157.52, BA:143.86,
+  AC:126.80, AL:218.75, AM:196.84, AP:157.52, BA:143.86,
   CE:180.62, DF:144.28, ES:144.92, GO:194.35, MA:153.58,
   MG:166.30, MS:157.56, MT:130.58, PA:291.71, PB:168.83,
   PE:171.19, PI:192.42, PR:164.09, RJ:288.76, RN:204.34,
@@ -370,37 +370,7 @@ function selecionarApostila(opcao){
 }
 
 // ===== CEP / FRETE =====
-// Tabela de fretes Correios 2024 (envelopes até 100g, origem SP)
-const FRETES_CORREIOS = {
-  SP:{pac:15.90,sedex:24.90,ppac:'5-8 dias úteis',psedex:'1-2 dias úteis'},
-  RJ:{pac:18.90,sedex:28.90,ppac:'5-8 dias úteis',psedex:'1-2 dias úteis'},
-  MG:{pac:17.90,sedex:26.90,ppac:'5-8 dias úteis',psedex:'2-3 dias úteis'},
-  ES:{pac:18.90,sedex:28.90,ppac:'6-8 dias úteis',psedex:'2-3 dias úteis'},
-  PR:{pac:19.90,sedex:29.90,ppac:'6-9 dias úteis',psedex:'1-2 dias úteis'},
-  SC:{pac:19.90,sedex:29.90,ppac:'6-9 dias úteis',psedex:'2-3 dias úteis'},
-  RS:{pac:21.90,sedex:31.90,ppac:'7-10 dias úteis',psedex:'2-3 dias úteis'},
-  DF:{pac:20.90,sedex:30.90,ppac:'6-9 dias úteis',psedex:'2-3 dias úteis'},
-  GO:{pac:20.90,sedex:30.90,ppac:'7-10 dias úteis',psedex:'2-3 dias úteis'},
-  MT:{pac:22.90,sedex:33.90,ppac:'8-12 dias úteis',psedex:'3-4 dias úteis'},
-  MS:{pac:21.90,sedex:32.90,ppac:'7-10 dias úteis',psedex:'3-4 dias úteis'},
-  BA:{pac:22.90,sedex:33.90,ppac:'7-10 dias úteis',psedex:'2-3 dias úteis'},
-  PE:{pac:23.90,sedex:34.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
-  CE:{pac:23.90,sedex:34.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
-  MA:{pac:24.90,sedex:36.90,ppac:'9-12 dias úteis',psedex:'4-5 dias úteis'},
-  PI:{pac:24.90,sedex:36.90,ppac:'9-12 dias úteis',psedex:'4-5 dias úteis'},
-  RN:{pac:24.90,sedex:35.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
-  PB:{pac:24.90,sedex:35.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
-  AL:{pac:24.90,sedex:35.90,ppac:'8-11 dias úteis',psedex:'3-4 dias úteis'},
-  SE:{pac:23.90,sedex:34.90,ppac:'8-10 dias úteis',psedex:'3-4 dias úteis'},
-  PA:{pac:26.90,sedex:38.90,ppac:'10-14 dias úteis',psedex:'4-5 dias úteis'},
-  AM:{pac:28.90,sedex:41.90,ppac:'12-16 dias úteis',psedex:'5-6 dias úteis'},
-  AC:{pac:30.90,sedex:44.90,ppac:'14-18 dias úteis',psedex:'5-7 dias úteis'},
-  RO:{pac:28.90,sedex:41.90,ppac:'12-15 dias úteis',psedex:'4-5 dias úteis'},
-  RR:{pac:30.90,sedex:44.90,ppac:'14-18 dias úteis',psedex:'5-7 dias úteis'},
-  AP:{pac:28.90,sedex:41.90,ppac:'12-15 dias úteis',psedex:'4-5 dias úteis'},
-  TO:{pac:25.90,sedex:37.90,ppac:'9-12 dias úteis',psedex:'4-5 dias úteis'},
-};
-
+// ===== CEP / FRETE via SuperFrete =====
 async function buscarCep(){
   const cepEl=document.getElementById('f-cep');
   const cep=(cepEl?cepEl.value:'').replace(/\D/g,'');
@@ -408,60 +378,65 @@ async function buscarCep(){
 
   const btn=document.querySelector('#enderecoWrap button[onclick="buscarCep()"]');
   if(btn){btn.textContent='Buscando...';btn.disabled=true;}
+  freteSelecionado=0; freteNome='';
 
   try{
-    // ViaCEP funciona direto no browser com CORS liberado
-    const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const r=await fetch('/api/frete',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cep_destino:cep})
+    });
     const data=await r.json();
 
-    if(data.erro){
-      alert('CEP não encontrado. Verifique e tente novamente.');
+    if(data.error){
+      alert(data.error);
       if(btn){btn.textContent='Buscar';btn.disabled=false;}
       return;
     }
 
-    // Preenche campos de endereço
-    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
-    set('f-rua', data.logradouro);
-    set('f-bairro', data.bairro);
-    set('f-cidade-end', data.localidade);
-    set('f-uf-end', data.uf);
+    // Preenche endereço
+    if(data.endereco){
+      const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+      set('f-rua', data.endereco.logradouro);
+      set('f-bairro', data.endereco.bairro);
+      set('f-cidade-end', data.endereco.cidade);
+      set('f-uf-end', data.endereco.uf);
+    }
 
-    // Calcula frete pela tabela Correios
-    const uf=data.uf;
-    const fretes=FRETES_CORREIOS[uf]||{pac:29.90,sedex:44.90,ppac:'10-15 dias úteis',psedex:'5-7 dias úteis'};
-    freteSelecionado=0; freteNome='';
-
+    // Mostra opções de frete
     const frInfo=document.getElementById('freteInfo');
     const frOpt=document.getElementById('freteOpcoes');
     if(frInfo) frInfo.style.display='block';
+
+    if(!data.opcoes || data.opcoes.length===0){
+      if(frOpt) frOpt.innerHTML='<div style="color:var(--text-2);font-size:.85rem;padding:8px">Nenhuma opção de frete disponível para este CEP.</div>';
+      if(btn){btn.textContent='Buscar';btn.disabled=false;}
+      return;
+    }
+
+    const fmt=v=>'R$ '+v.toFixed(2).replace('.',',');
     if(frOpt) frOpt.innerHTML=`
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;padding:8px;border-radius:6px;background:var(--white);border:1.5px solid var(--border)" id="label-pac">
-          <input type="radio" name="frete" value="${fretes.pac}" onchange="selecionarFrete(${fretes.pac},'PAC',this)">
-          <div>
-            <div style="font-weight:600">📦 PAC — R$ ${fretes.pac.toFixed(2).replace('.',',')}</div>
-            <div style="font-size:.78rem;color:var(--text-2)">${fretes.ppac}</div>
-          </div>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;padding:8px;border-radius:6px;background:var(--white);border:1.5px solid var(--border)" id="label-sedex">
-          <input type="radio" name="frete" value="${fretes.sedex}" onchange="selecionarFrete(${fretes.sedex},'SEDEX',this)">
-          <div>
-            <div style="font-weight:600">⚡ SEDEX — R$ ${fretes.sedex.toFixed(2).replace('.',',')}</div>
-            <div style="font-size:.78rem;color:var(--text-2)">${fretes.psedex}</div>
-          </div>
-        </label>
+        ${data.opcoes.map(op=>`
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;padding:8px;border-radius:6px;background:var(--white);border:1.5px solid var(--border)">
+            <input type="radio" name="frete" value="${op.preco}" onchange="selecionarFrete(${op.preco},'${op.nome.replace(/'/g,"\\'")}',this)">
+            <div>
+              <div style="font-weight:600">${op.nome} — ${fmt(op.preco)}</div>
+              <div style="font-size:.78rem;color:var(--text-2)">${op.prazo} dias úteis${op.servico?' · '+op.servico:''}</div>
+            </div>
+          </label>`).join('')}
       </div>
       <div style="font-size:.75rem;color:var(--text-3);margin-top:6px">
-        * Valores baseados na tabela oficial dos Correios 2024 para documentos (envelope até 100g).
+        * Valores calculados pela SuperFrete com desconto de até 80%.
       </div>`;
 
     if(btn){btn.textContent='Buscar';btn.disabled=false;}
   }catch(e){
-    alert('Erro ao buscar CEP. Verifique sua conexão e tente novamente.');
+    alert('Erro ao buscar CEP. Verifique sua conexão.');
     if(btn){btn.textContent='Buscar';btn.disabled=false;}
   }
 }
+
 function selecionarFrete(valor, nome, inputEl){
   freteSelecionado=valor; freteNome=nome;
   // Highlight selected label
