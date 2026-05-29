@@ -39,12 +39,17 @@ export default async function handler(req, res) {
     let pedido = null;
     if (REDIS_URL && REDIS_TOKEN && extRef) {
       try {
-        const redisRes = await fetch(`${REDIS_URL}/get/pedido:${extRef}`, {
+        const redisRes = await fetch(`${REDIS_URL}/get/pedido:${encodeURIComponent(extRef)}`, {
           headers: { 'Authorization': `Bearer ${REDIS_TOKEN}` }
         });
         const redisData = await redisRes.json();
         if (redisData.result) {
-          pedido = JSON.parse(redisData.result);
+          // Pode ter dois níveis de JSON
+          let raw = redisData.result;
+          if (typeof raw === 'string') raw = JSON.parse(raw);
+          // Se tem campo "value", desencapsula
+          if (raw.value) raw = typeof raw.value === 'string' ? JSON.parse(raw.value) : raw.value;
+          pedido = raw;
         }
       } catch(e) {
         console.log('Redis error:', e.message);
