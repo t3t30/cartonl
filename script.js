@@ -553,3 +553,10 @@ function fmtData(val) {
   if (p.length === 3) return p[2]+'/'+p[1]+'/'+p[0];
   return val;
 }
+
+// ===== FAQ =====
+function toggleFaq(el) {
+  const wasOpen = el.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+  if (!wasOpen) el.classList.add('open');
+}
