@@ -5,12 +5,12 @@ const TAXA_APOSTILA = 240;
 
 // ===== PRECOS POR ESTADO =====
 const PRECOS_ESTADO = {
-  AC:126.80, AL:218.75, AM:196.84, AP:157.52, BA:143.86,
-  CE:180.62, DF:144.28, ES:144.92, GO:194.35, MA:153.58,
-  MG:166.30, MS:157.56, MT:130.58, PA:291.71, PB:168.83,
-  PE:171.19, PI:192.42, PR:164.09, RJ:288.76, RN:204.34,
-  RO:134.98, RR:132.10, RS:159.79, SC:151.06, SE:174.70,
-  SP:146.74, TO:159.81
+  AC:156.80, AL:248.75, AM:226.84, AP:187.52, BA:173.86,
+  CE:210.62, DF:174.28, ES:174.92, GO:224.35, MA:183.58,
+  MG:196.30, MS:187.56, MT:160.58, PA:321.71, PB:198.83,
+  PE:201.19, PI:222.42, PR:194.09, RJ:318.76, RN:234.34,
+  RO:164.98, RR:162.10, RS:189.79, SC:181.06, SE:204.70,
+  SP:176.74, TO:189.81
 };
 const IBGE_UF_ID = {
   AC:12,AL:27,AP:16,AM:13,BA:29,CE:23,DF:53,ES:32,
@@ -27,7 +27,7 @@ const CERT_INFO = {
 // ===== STATE =====
 let tipoCert='', cartorioSelecionado='';
 let entregaSelecionada='', apostilaSelecionada='';
-let freteSelecionado=0, freteNome='';
+
 let stepAtual=1;
 
 // ===== MÁSCARAS =====
@@ -62,7 +62,7 @@ function fecharAviso() {
 // ===== FORM OPEN/CLOSE =====
 function abrirForm(tipo) {
   tipoCert=tipo; cartorioSelecionado='';
-  entregaSelecionada=''; apostilaSelecionada=''; freteSelecionado=0; freteNome='';
+  entregaSelecionada=''; apostilaSelecionada='';
   const info=CERT_INFO[tipo];
   document.getElementById('formHeaderTitle').textContent=info.label;
   const badge=document.getElementById('certBadge');
@@ -202,15 +202,7 @@ function validarStep(n){
         if(vazio){if(fg)fg.classList.add('error');ok=false;}
         else if(fg)fg.classList.remove('error');
       });
-      if(freteSelecionado===0){
-        const frInfo=document.getElementById('freteInfo');
-        if(frInfo && frInfo.style.display==='none'){
-          alert('Por favor, busque seu CEP e selecione uma opção de frete.');
-        } else {
-          alert('Por favor, selecione PAC ou SEDEX para continuar.');
-        }
-        ok=false;
-      }
+
     }
     return ok;
   }
@@ -370,84 +362,23 @@ function selecionarApostila(opcao){
 }
 
 // ===== CEP / FRETE =====
-// ===== CEP / FRETE via SuperFrete =====
-async function buscarCep(){
-  const cepEl=document.getElementById('f-cep');
-  const cep=(cepEl?cepEl.value:'').replace(/\D/g,'');
-  if(cep.length!==8){alert('CEP inválido. Digite 8 números.');return;}
-
-  const btn=document.querySelector('#enderecoWrap button[onclick="buscarCep()"]');
-  if(btn){btn.textContent='Buscando...';btn.disabled=true;}
-  freteSelecionado=0; freteNome='';
-
+// ===== CEP / AUTO-FILL ENDEREÇO =====
+async function buscarCepAuto(el){
+  const cep=el.value.replace(/\D/g,'');
+  if(cep.length!==8) return;
   try{
-    const r=await fetch('/api/frete',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({cep_destino:cep})
-    });
+    const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`);
     const data=await r.json();
-
-    if(data.error){
-      alert(data.error);
-      if(btn){btn.textContent='Buscar';btn.disabled=false;}
-      return;
-    }
-
-    // Preenche endereço
-    if(data.endereco){
-      const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
-      set('f-rua', data.endereco.logradouro);
-      set('f-bairro', data.endereco.bairro);
-      set('f-cidade-end', data.endereco.cidade);
-      set('f-uf-end', data.endereco.uf);
-    }
-
-    // Mostra opções de frete
-    const frInfo=document.getElementById('freteInfo');
-    const frOpt=document.getElementById('freteOpcoes');
-    if(frInfo) frInfo.style.display='block';
-
-    if(!data.opcoes || data.opcoes.length===0){
-      if(frOpt) frOpt.innerHTML='<div style="color:var(--text-2);font-size:.85rem;padding:8px">Nenhuma opção de frete disponível para este CEP.</div>';
-      if(btn){btn.textContent='Buscar';btn.disabled=false;}
-      return;
-    }
-
-    const fmt=v=>'R$ '+v.toFixed(2).replace('.',',');
-    if(frOpt) frOpt.innerHTML=`
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-        ${data.opcoes.map(op=>`
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.85rem;padding:8px;border-radius:6px;background:var(--white);border:1.5px solid var(--border)">
-            <input type="radio" name="frete" value="${op.preco}" onchange="selecionarFrete(${op.preco},'${op.nome.replace(/'/g,"\\'")}',this)">
-            <div>
-              <div style="font-weight:600">${op.nome} — ${fmt(op.preco)}</div>
-              <div style="font-size:.78rem;color:var(--text-2)">${op.prazo} dias úteis${op.servico?' · '+op.servico:''}</div>
-            </div>
-          </label>`).join('')}
-      </div>
-      <div style="font-size:.75rem;color:var(--text-3);margin-top:6px">
-        * Valores calculados pela SuperFrete com desconto de até 80%.
-      </div>`;
-
-    if(btn){btn.textContent='Buscar';btn.disabled=false;}
-  }catch(e){
-    alert('Erro ao buscar CEP. Verifique sua conexão.');
-    if(btn){btn.textContent='Buscar';btn.disabled=false;}
-  }
+    if(data.erro) return;
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+    set('f-rua', data.logradouro);
+    set('f-bairro', data.bairro);
+    set('f-cidade-end', data.localidade);
+    set('f-uf-end', data.uf);
+  }catch(e){}
 }
 
-function selecionarFrete(valor, nome, inputEl){
-  freteSelecionado=valor; freteNome=nome;
-  // Highlight selected label
-  document.querySelectorAll('#freteOpcoes label').forEach(l=>{
-    l.style.borderColor='var(--border)';l.style.background='var(--white)';
-  });
-  if(inputEl && inputEl.closest('label')){
-    inputEl.closest('label').style.borderColor='var(--blue)';
-    inputEl.closest('label').style.background='var(--blue-light)';
-  }
-}
+
 function mascaraCep(el){
   let v=el.value.replace(/\D/g,'');
   if(v.length>8)v=v.slice(0,8);
@@ -460,8 +391,7 @@ function getTotal(){
   const base=PRECOS_ESTADO[est]||99.00;
   const busca=0; // busca incluída no serviço
   const apostila=apostilaSelecionada==='sim'?TAXA_APOSTILA:0;
-  const frete=entregaSelecionada==='fisica'?freteSelecionado:0;
-  return{base,busca,apostila,frete,total:base+busca+apostila+frete};
+  return{base,busca,apostila,frete:0,total:base+busca+apostila};
 }
 
 function renderPreco(){
@@ -472,7 +402,7 @@ function renderPreco(){
     <div class="price-row"><span class="price-label">Valor da certidão</span><span class="price-val">${fmt(base)}</span></div>
 
     ${apostila?`<div class="price-row"><span class="price-label">Apostilamento de Haia</span><span class="price-val extra">+ ${fmt(apostila)}</span></div>`:''}
-    ${frete?`<div class="price-row"><span class="price-label">Frete ${freteNome}</span><span class="price-val extra">+ ${fmt(frete)}</span></div>`:''}
+
     <div class="price-row total"><span class="price-label">Total</span><span class="price-val">${fmt(total)}</span></div>`;
 }
 
@@ -492,7 +422,7 @@ function renderRevisao(){
         <div class="review-item"><div class="rlabel">Bairro</div><div class="rvalue">${document.getElementById('f-bairro').value}</div></div>
         <div class="review-item"><div class="rlabel">Cidade/UF</div><div class="rvalue">${document.getElementById('f-cidade-end').value} – ${document.getElementById('f-uf-end').value}</div></div>
         <div class="review-item"><div class="rlabel">CEP</div><div class="rvalue">${document.getElementById('f-cep').value}</div></div>
-        ${frete?`<div class="review-item"><div class="rlabel">Frete</div><div class="rvalue">${freteNome} – ${fmt(frete)}</div></div>`:''}
+
       </div>
     </div>`:'';
 
@@ -539,7 +469,7 @@ function renderRevisao(){
         <div class="price-row"><span class="price-label">Valor da certidão</span><span class="price-val">${fmt(base)}</span></div>
 
         ${apostila?`<div class="price-row"><span class="price-label">Apostilamento</span><span class="price-val extra">+ ${fmt(apostila)}</span></div>`:''}
-        ${frete?`<div class="price-row"><span class="price-label">Frete ${freteNome}</span><span class="price-val extra">+ ${fmt(frete)}</span></div>`:''}
+    
         <div class="price-row total"><span class="price-label">Total</span><span class="price-val">${fmt(total)}</span></div>
       </div>
     </div>`;
@@ -572,7 +502,7 @@ async function finalizarPedido(){
     apostilamento:apostilaSelecionada==='sim'?'Sim':'Não',
     endereco_entrega:entregaSelecionada==='fisica'?
       `${document.getElementById('f-rua').value}, ${document.getElementById('f-numero').value} – ${document.getElementById('f-bairro').value}, ${document.getElementById('f-cidade-end').value}/${document.getElementById('f-uf-end').value} CEP: ${document.getElementById('f-cep').value}`:'N/A',
-    frete:frete?`${freteNome} – ${fmt(frete)}`:'N/A',
+    frete:'Entraremos em contato',
     valor_total:fmt(total)
   };
 
