@@ -44,11 +44,20 @@ export default async function handler(req, res) {
         });
         const redisData = await redisRes.json();
         if (redisData.result) {
-          // Pode ter dois níveis de JSON
+          // Desencapsula múltiplos níveis de JSON
           let raw = redisData.result;
-          if (typeof raw === 'string') raw = JSON.parse(raw);
-          // Se tem campo "value", desencapsula
-          if (raw.value) raw = typeof raw.value === 'string' ? JSON.parse(raw.value) : raw.value;
+          let attempts = 0;
+          while (typeof raw === 'string' && attempts < 5) {
+            try { raw = JSON.parse(raw); attempts++; } catch(e) { break; }
+          }
+          if (raw && raw.value) {
+            let val = raw.value;
+            let att2 = 0;
+            while (typeof val === 'string' && att2 < 5) {
+              try { val = JSON.parse(val); att2++; } catch(e) { break; }
+            }
+            raw = val;
+          }
           pedido = raw;
         }
       } catch(e) {
