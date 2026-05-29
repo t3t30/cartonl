@@ -1,82 +1,85 @@
-// api/frete.js — calcula frete via Correios (melhorenvio.com.br como proxy)
-// Usa a API pública de estimativa dos Correios
+// api/frete.js — Calcula frete via SuperFrete API
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { cep_destino } = req.body || {};
-  if (!cep_destino) return res.status(400).json({ error: 'CEP obrigatório' });
+  const TOKEN = process.env.SUPERFRETE_TOKEN;
+  if (!TOKEN) return res.status(500).json({ error: 'Token SuperFrete não configurado' });
 
-  const cepLimpo = cep_destino.replace(/\D/g,'');
-  if (cepLimpo.length !== 8) return res.status(400).json({ error: 'CEP inválido' });
+  const { cep_origem, cep_destino } = req.body || {};
+  if (!cep_destino) return res.status(400).json({ error: 'CEP destino obrigatório' });
 
-  // CEP origem: São Paulo/SP (centro de distribuição)
-  const CEP_ORIGEM = '01310100';
+  // CEP origem: se não informado, usa SP como padrão
+  const origem = (cep_origem || '01310100').replace(/\D/g, '');
+  const destino = cep_destino.replace(/\D/g, '');
+
+  if (destino.length !== 8) return res.status(400).json({ error: 'CEP inválido' });
 
   try {
-    // Tenta API dos Correios via proxy público
-    const url = `https://viacep.com.br/ws/${cepLimpo}/json/`;
-    const cepRes = await fetch(url);
-    const cepData = await cepRes.json();
+    const sfRes = await fetch('https://api.superfrete.com/api/v0/calculator', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${TOKEN}`,
+        'User-Agent': 'CartorioEmCasa (contato@cartorioemcasa.com.br)',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: { postal_code: origem },
+        to: { postal_code: destino },
+        package: {
+          height: 1,     // cm - envelope
+          width: 20,     // cm
+          length: 28,    // cm
+          weight: 0.1    // kg - documento
+        }
+      })
+    });
 
-    if (cepData.erro) {
-      return res.status(200).json({ erro: 'CEP não encontrado' });
+    const data = await sfRes.json();
+
+    if (!sfRes.ok) {
+      console.error('SuperFrete error:', data);
+      return res.status(200).json({ error: data.message || 'Erro ao calcular frete' });
     }
 
-    // Estimativa de frete baseada na região (sem API paga dos Correios)
-    // Valores baseados na tabela PAC/SEDEX 2024 para envelopes até 100g
-    const uf = cepData.uf;
-    const fretesEstimados = {
-      // Sudeste
-      SP: { pac: 15.90, sedex: 24.90 },
-      RJ: { pac: 18.90, sedex: 28.90 },
-      MG: { pac: 17.90, sedex: 26.90 },
-      ES: { pac: 18.90, sedex: 28.90 },
-      // Sul
-      PR: { pac: 19.90, sedex: 29.90 },
-      SC: { pac: 19.90, sedex: 29.90 },
-      RS: { pac: 21.90, sedex: 31.90 },
-      // Centro-Oeste
-      DF: { pac: 20.90, sedex: 30.90 },
-      GO: { pac: 20.90, sedex: 30.90 },
-      MT: { pac: 22.90, sedex: 33.90 },
-      MS: { pac: 21.90, sedex: 32.90 },
-      // Nordeste
-      BA: { pac: 22.90, sedex: 33.90 },
-      PE: { pac: 23.90, sedex: 34.90 },
-      CE: { pac: 23.90, sedex: 34.90 },
-      MA: { pac: 24.90, sedex: 36.90 },
-      PI: { pac: 24.90, sedex: 36.90 },
-      RN: { pac: 24.90, sedex: 35.90 },
-      PB: { pac: 24.90, sedex: 35.90 },
-      AL: { pac: 24.90, sedex: 35.90 },
-      SE: { pac: 23.90, sedex: 34.90 },
-      // Norte
-      PA: { pac: 26.90, sedex: 38.90 },
-      AM: { pac: 28.90, sedex: 41.90 },
-      AC: { pac: 30.90, sedex: 44.90 },
-      RO: { pac: 28.90, sedex: 41.90 },
-      RR: { pac: 30.90, sedex: 44.90 },
-      AP: { pac: 28.90, sedex: 41.90 },
-      TO: { pac: 25.90, sedex: 37.90 },
-    };
+    // Formata as opções de frete
+    const opcoes = (data || [])
+      .filter(op => !op.error)
+      .map(op => ({
+        nome: op.name || op.company?.name || 'Envio',
+        servico: op.company?.name || '',
+        preco: op.price || 0,
+        prazo: op.delivery_time || 0,
+        id: op.id || ''
+      }))
+      .sort((a, b) => a.preco - b.preco);
 
-    const fretes = fretesEstimados[uf] || { pac: 27.90, sedex: 40.90 };
+    // Busca endereço via ViaCEP
+    let endereco = {};
+    try {
+      const cepRes = await fetch(`https://viacep.com.br/ws/${destino}/json/`);
+      const cepData = await cepRes.json();
+      if (!cepData.erro) {
+        endereco = {
+          logradouro: cepData.logradouro,
+          bairro: cepData.bairro,
+          cidade: cepData.localidade,
+          uf: cepData.uf
+        };
+      }
+    } catch(e) {}
 
     return res.status(200).json({
-      cep: cepLimpo,
-      logradouro: cepData.logradouro,
-      bairro: cepData.bairro,
-      cidade: cepData.localidade,
-      uf: cepData.uf,
-      pac: fretes.pac,
-      sedex: fretes.sedex,
-      prazo_pac: '5-8 dias úteis',
-      prazo_sedex: '1-2 dias úteis'
+      opcoes,
+      endereco,
+      cep: destino
     });
-  } catch(e) {
+
+  } catch (e) {
+    console.error('Frete error:', e);
     return res.status(500).json({ error: 'Erro ao calcular frete' });
   }
 }
