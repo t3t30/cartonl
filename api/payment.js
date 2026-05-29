@@ -23,16 +23,14 @@ export default async function handler(req, res) {
   try {
     // 1. Salva dados do cliente no Redis (expira em 48h)
     if (REDIS_URL && REDIS_TOKEN) {
-      await fetch(`${REDIS_URL}/set/pedido:${extRef}`, {
+      const pedidoData = JSON.stringify({ nome, email, whatsapp, tipo_certidao, estado, valor_total });
+      await fetch(`${REDIS_URL}/set/${encodeURIComponent('pedido:'+extRef)}?ex=172800`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${REDIS_TOKEN}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          value: JSON.stringify({ nome, email, whatsapp, tipo_certidao, estado, valor_total }),
-          ex: 172800 // 48 horas
-        })
+        body: JSON.stringify(pedidoData)
       });
     }
 
